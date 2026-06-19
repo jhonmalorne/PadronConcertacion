@@ -1,489 +1,1217 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Taxi Comunidad Los Guayos · Sistema en tiempo real</title>
-    <!-- Leaflet CSS/JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Firebase SDK (modular compat) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <!-- Font Awesome 6 (gratuito) para iconos de foto -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-        }
-        body {
-            background: #f0f4f8;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        header {
-            background: #1e3a5f;
-            color: white;
-            padding: 1rem;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        header h1 {
-            font-weight: 400;
-            font-size: 1.6rem;
-        }
-        header h1 i {
-            margin-right: 10px;
-            color: #ffc107;
-        }
-        .map-container {
-            height: 300px;
-            width: 100%;
-            border-bottom: 4px solid #2c3e50;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 10;
-        }
-        #map {
-            height: 100%;
-            width: 100%;
-            background: #c8e0e0;
-        }
-        .action-bar {
-            background: white;
-            padding: 1rem;
-            display: flex;
-            justify-content: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .btn-pedir {
-            background: #27ae60;
-            border: none;
-            color: white;
-            font-size: 1.4rem;
-            padding: 0.8rem 3rem;
-            border-radius: 50px;
-            box-shadow: 0 4px 8px rgba(39,174,96,0.3);
-            cursor: pointer;
-            transition: 0.2s;
-            font-weight: 600;
-            letter-spacing: 1px;
-            border: 2px solid #1e8449;
-        }
-        .btn-pedir i {
-            margin-right: 10px;
-        }
-        .btn-pedir:hover {
-            background: #2ecc71;
-            transform: scale(1.02);
-            box-shadow: 0 8px 12px rgba(46,204,113,0.4);
-        }
-        .main-content {
-            flex: 1;
-            padding: 1.5rem 1rem;
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-        .seccion-titulo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 1.5rem;
-            border-left: 8px solid #f39c12;
-            padding-left: 1rem;
-        }
-        .seccion-titulo h2 {
-            color: #1e3a5f;
-            font-weight: 500;
-        }
-        .taxistas-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2.5rem;
-        }
-        .taxista-card {
-            background: white;
-            border-radius: 24px;
-            padding: 1.2rem;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
-            transition: 0.2s;
-            border: 1px solid rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-        .taxista-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
-        }
-        .foto-duo {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            background: #ecf0f1;
-            border-radius: 100px;
-            padding: 0.8rem 1.2rem;
-        }
-        .foto-conductor, .foto-auto {
-            text-align: center;
-        }
-        .foto-conductor i, .foto-auto i {
-            font-size: 3.2rem;
-            color: #34495e;
-        }
-        .foto-conductor p, .foto-auto p {
-            font-size: 0.7rem;
-            color: #7f8c8d;
-            margin-top: 4px;
-        }
-        .info-taxista {
-            border-top: 1px dashed #bdc3c7;
-            padding-top: 0.8rem;
-            margin-bottom: 0.8rem;
-        }
-        .nombre {
-            font-weight: 700;
-            font-size: 1.2rem;
-            color: #2c3e50;
-        }
-        .edad-placa {
-            display: flex;
-            gap: 1.2rem;
-            margin: 8px 0;
-            color: #4a5568;
-            font-size: 0.95rem;
-        }
-        .edad-placa i {
-            width: 20px;
-            color: #f39c12;
-        }
-        .whatsapp-btn {
-            background: #25D366;
-            color: white;
-            border: none;
-            border-radius: 40px;
-            padding: 10px 15px;
-            text-align: center;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 0.95rem;
-            margin-top: 6px;
-            transition: 0.2s;
-        }
-        .whatsapp-btn:hover {
-            background: #20B859;
-        }
-        .buzon {
-            background: linear-gradient(145deg, #fff9e6, #fff2d7);
-            border-radius: 40px;
-            padding: 1.5rem 2rem;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            border: 2px solid #f1c40f;
-            margin-top: 2rem;
-        }
-        .buzon-info h3 {
-            color: #a55d00;
-            font-size: 1.5rem;
-            margin-bottom: 0.3rem;
-        }
-        .buzon-info p {
-            font-size: 1.1rem;
-        }
-        .buzon-wa {
-            background: #f39c12;
-            padding: 0.8rem 2rem;
-            border-radius: 60px;
-            color: #2d2d2d;
-            font-weight: bold;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 8px rgba(243,156,18,0.4);
-        }
-        .buzon-wa i {
-            font-size: 2rem;
-        }
-        footer {
-            background: #1e3a5f;
-            color: #ccc;
-            text-align: center;
-            padding: 1rem;
-            font-size: 0.9rem;
-            margin-top: 2rem;
-        }
-        .leaflet-popup-content {
-            font-weight: 500;
-        }
-        /* responsive */
-        @media (max-width: 600px) {
-            .btn-pedir { font-size: 1.2rem; padding: 0.8rem 2rem; }
-            .buzon { flex-direction: column; gap: 1rem; text-align: center; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Web Electoral · Concertación Carabobo</title>
+<link rel="icon" href="https://github.com/jhonmalorne/PadronConcertacion/blob/main/Logo%20de%20concertacion.png?raw=true">
+
+<style>
+:root{
+  --azul-900:#0a2147;
+  --azul-800:#0d2a5e;
+  --azul-700:#16397c;
+  --azul-600:#1f4fa3;
+  --dorado-600:#c49a22;
+  --dorado-400:#e8bb3e;
+  --dorado-300:#f0c84a;
+  --rojo-600:#c8102e;
+  --gris-50:#f6f7fb;
+  --gris-100:#eceff5;
+  --gris-200:#dde2ec;
+  --gris-400:#9aa3b5;
+  --gris-600:#5b6478;
+  --gris-800:#2c3243;
+  --blanco:#ffffff;
+  --verde-ok:#1d8a4c;
+  --sombra:0 8px 24px rgba(10,33,71,0.10);
+  --radio:14px;
+  --radio-sm:9px;
+  --fuente: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:var(--fuente);
+  background:var(--gris-50);
+  color:var(--gris-800);
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:64px;
+}
+
+a{color:inherit;text-decoration:none;}
+
+/* ============ TOPBAR / CINTA ============ */
+.topband{
+  width:100%;
+  display:block;
+}
+.topband img{
+  width:100%;
+  display:block;
+  object-fit:cover;
+  max-height:130px;
+}
+
+.hero{
+  background: linear-gradient(180deg, var(--azul-900) 0%, var(--azul-800) 55%, var(--azul-700) 100%);
+  padding:26px 18px 34px;
+  position:relative;
+  overflow:hidden;
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  bottom:0;left:0;right:0;height:6px;
+  background:linear-gradient(90deg,var(--dorado-600),var(--dorado-300),var(--dorado-600));
+}
+.hero-inner{
+  max-width:1080px;
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  gap:24px;
+  flex-wrap:wrap;
+}
+.hero-photo{
+  flex:0 0 180px;
+  border-radius:var(--radio);
+  overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,0.35);
+  border:3px solid var(--dorado-400);
+}
+.hero-photo img{
+  width:100%;
+  display:block;
+}
+.hero-text{flex:1;min-width:240px;}
+.hero-eyebrow{
+  color:var(--dorado-300);
+  font-weight:700;
+  font-size:12.5px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin:0 0 8px;
+}
+.hero-title{
+  color:#fff;
+  font-size:clamp(22px,4vw,32px);
+  font-weight:800;
+  line-height:1.15;
+  margin:0 0 10px;
+}
+.hero-title span{color:var(--dorado-300);}
+.hero-desc{
+  color:rgba(255,255,255,0.85);
+  font-size:14.5px;
+  line-height:1.6;
+  margin:0;
+  max-width:560px;
+}
+.hero-badges{
+  display:flex;
+  gap:10px;
+  margin-top:14px;
+  flex-wrap:wrap;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  background:rgba(255,255,255,0.10);
+  border:1px solid rgba(255,255,255,0.25);
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+  padding:6px 12px;
+  border-radius:50px;
+}
+.badge img{width:16px;height:16px;border-radius:50%;}
+
+/* ============ NAV LINKS ============ */
+.quicklinks{
+  max-width:1080px;
+  margin:-22px auto 0;
+  padding:0 18px;
+  position:relative;
+  z-index:5;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.qlink{
+  background:#fff;
+  border:1px solid var(--gris-200);
+  box-shadow:var(--sombra);
+  border-radius:50px;
+  padding:9px 16px;
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--azul-800);
+  display:flex;
+  align-items:center;
+  gap:7px;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.qlink:hover{transform:translateY(-2px);}
+.qlink .dot{width:7px;height:7px;border-radius:50%;background:var(--dorado-600);}
+
+/* ============ CONTAINER ============ */
+.wrap{
+  max-width:1080px;
+  margin:0 auto;
+  padding:34px 18px 10px;
+}
+
+.section-title{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:0 0 6px;
+}
+.section-title h2{
+  font-size:20px;
+  font-weight:800;
+  color:var(--azul-800);
+  margin:0;
+}
+.section-title .line{
+  flex:1;
+  height:2px;
+  background:linear-gradient(90deg,var(--gris-200),transparent);
+}
+.section-sub{
+  color:var(--gris-600);
+  font-size:13.5px;
+  margin:0 0 22px;
+  line-height:1.5;
+}
+
+/* ============ STATS ============ */
+.stats-row{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:12px;
+  margin-bottom:28px;
+}
+.stat-card{
+  background:#fff;
+  border:1px solid var(--gris-200);
+  border-radius:var(--radio);
+  padding:16px 18px;
+  box-shadow:var(--sombra);
+}
+.stat-card .num{
+  font-size:26px;
+  font-weight:800;
+  color:var(--azul-800);
+  line-height:1;
+}
+.stat-card .lbl{
+  font-size:12px;
+  color:var(--gris-600);
+  font-weight:600;
+  margin-top:6px;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+
+/* ============ FORM CARD ============ */
+.card{
+  background:#fff;
+  border:1px solid var(--gris-200);
+  border-radius:var(--radio);
+  box-shadow:var(--sombra);
+  padding:24px;
+  margin-bottom:26px;
+}
+.card-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+.card-header h3{
+  font-size:16.5px;
+  font-weight:800;
+  color:var(--azul-800);
+  margin:0;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.card-header h3 .ico{
+  width:30px;height:30px;
+  border-radius:9px;
+  background:var(--azul-800);
+  color:var(--dorado-300);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+  font-weight:900;
+}
+
+.field-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:14px;
+  margin-bottom:8px;
+}
+.field-grid.cols-1{grid-template-columns:1fr;}
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.field label{
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--gris-800);
+}
+.field label .req{color:var(--rojo-600);}
+.field input, .field textarea{
+  border:1.5px solid var(--gris-200);
+  border-radius:var(--radio-sm);
+  padding:10px 12px;
+  font-size:14px;
+  font-family:var(--fuente);
+  color:var(--gris-800);
+  background:var(--gris-50);
+  transition:border-color .15s ease, background .15s ease;
+}
+.field input:focus, .field textarea:focus{
+  outline:none;
+  border-color:var(--azul-600);
+  background:#fff;
+}
+.field .hint{font-size:11px;color:var(--gris-400);}
+
+/* role groups */
+.role-block{
+  border:1.5px dashed var(--gris-200);
+  border-radius:var(--radio);
+  padding:16px 16px 18px;
+  margin-bottom:14px;
+  background:var(--gris-50);
+}
+.role-block .role-title{
+  font-size:13.5px;
+  font-weight:800;
+  color:var(--azul-700);
+  margin:0 0 12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.role-title .tag{
+  background:var(--azul-800);
+  color:#fff;
+  font-size:10.5px;
+  font-weight:700;
+  padding:3px 9px;
+  border-radius:50px;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+
+/* witnesses dynamic list */
+#testigosContainer .role-block{
+  position:relative;
+}
+.btn-remove-testigo{
+  position:absolute;
+  top:10px;right:10px;
+  background:#fde7e7;
+  color:var(--rojo-600);
+  border:1px solid #f5c2c2;
+  border-radius:50px;
+  font-size:11px;
+  font-weight:700;
+  padding:5px 11px;
+  cursor:pointer;
+}
+.btn-remove-testigo:hover{background:#fadbdb;}
+
+/* ============ BUTTONS ============ */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:none;
+  border-radius:50px;
+  font-family:var(--fuente);
+  font-weight:700;
+  font-size:13.5px;
+  padding:12px 22px;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+.btn:active{transform:scale(0.97);}
+.btn-primary{
+  background:var(--azul-800);
+  color:#fff;
+  box-shadow:0 4px 14px rgba(13,42,94,0.30);
+}
+.btn-primary:hover{background:var(--azul-700);}
+.btn-gold{
+  background:linear-gradient(135deg,var(--dorado-400),var(--dorado-600));
+  color:var(--azul-900);
+  box-shadow:0 4px 14px rgba(196,154,34,0.35);
+}
+.btn-gold:hover{filter:brightness(1.05);}
+.btn-outline{
+  background:#fff;
+  color:var(--azul-800);
+  border:1.5px solid var(--gris-200);
+}
+.btn-outline:hover{border-color:var(--azul-600);}
+.btn-danger-outline{
+  background:#fff;
+  color:var(--rojo-600);
+  border:1.5px solid #f1c4c4;
+}
+.btn-danger-outline:hover{background:#fdeaea;}
+.btn-whatsapp{
+  background:#1ebd5b;
+  color:#fff;
+  box-shadow:0 4px 14px rgba(30,189,91,0.35);
+}
+.btn-whatsapp:hover{background:#19a64f;}
+.btn-sm{padding:8px 14px;font-size:12.5px;}
+.btn-block{width:100%;}
+
+.form-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:8px;
+  padding-top:16px;
+  border-top:1px solid var(--gris-100);
+}
+
+/* ============ CENTERS LIST ============ */
+.center-card{
+  background:#fff;
+  border:1px solid var(--gris-200);
+  border-radius:var(--radio);
+  box-shadow:var(--sombra);
+  margin-bottom:14px;
+  overflow:hidden;
+}
+.center-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px 20px;
+  cursor:pointer;
+  flex-wrap:wrap;
+}
+.center-head:hover{background:var(--gris-50);}
+.center-id{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.center-num{
+  width:34px;height:34px;
+  border-radius:50%;
+  background:var(--azul-800);
+  color:var(--dorado-300);
+  font-weight:800;
+  font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  flex:0 0 34px;
+}
+.center-titles strong{
+  display:block;
+  font-size:14.5px;
+  color:var(--azul-800);
+  font-weight:800;
+}
+.center-titles span{
+  display:block;
+  font-size:12px;
+  color:var(--gris-600);
+  margin-top:2px;
+}
+.center-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.chev{
+  font-size:18px;
+  color:var(--gris-400);
+  transition:transform .2s ease;
+}
+.center-card.open .chev{transform:rotate(180deg);}
+.center-body{
+  display:none;
+  padding:0 20px 20px;
+  border-top:1px solid var(--gris-100);
+}
+.center-card.open .center-body{display:block;}
+
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:10px;
+  margin:16px 0;
+}
+.summary-item{
+  background:var(--gris-50);
+  border:1px solid var(--gris-100);
+  border-radius:var(--radio-sm);
+  padding:12px 14px;
+}
+.summary-item .role-name{
+  font-size:11px;
+  font-weight:800;
+  color:var(--dorado-600);
+  text-transform:uppercase;
+  letter-spacing:0.6px;
+  margin-bottom:6px;
+}
+.summary-item .person-name{
+  font-size:13.5px;
+  font-weight:700;
+  color:var(--azul-800);
+}
+.summary-item .person-detail{
+  font-size:12px;
+  color:var(--gris-600);
+  margin-top:3px;
+}
+.empty-role{
+  color:var(--gris-400);
+  font-size:12px;
+  font-style:italic;
+}
+
+.empty-state{
+  text-align:center;
+  padding:50px 20px;
+  color:var(--gris-400);
+}
+.empty-state .ico-big{
+  font-size:42px;
+  margin-bottom:10px;
+}
+.empty-state p{font-size:14px;margin:6px 0 0;}
+
+/* ============ TOAST ============ */
+.toast{
+  position:fixed;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--azul-900);
+  color:#fff;
+  padding:13px 22px;
+  border-radius:50px;
+  font-size:13.5px;
+  font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,0.25);
+  z-index:999;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s ease, transform .25s ease;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.toast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+  pointer-events:auto;
+}
+.toast .dot-ok{
+  width:8px;height:8px;border-radius:50%;background:var(--dorado-300);
+}
+
+/* ============ FLOATING WHATSAPP ============ */
+.float-wa{
+  position:fixed;
+  bottom:22px;
+  right:22px;
+  z-index:90;
+  width:56px;height:56px;
+  border-radius:50%;
+  background:#1ebd5b;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 8px 20px rgba(30,189,91,0.45);
+}
+.float-wa img{width:30px;height:30px;}
+
+/* ============ FOOTER ============ */
+.footer{
+  margin-top:40px;
+  background:var(--azul-900);
+  padding:28px 18px;
+  text-align:center;
+}
+.footer img.flogo{
+  width:120px;
+  margin-bottom:10px;
+  opacity:0.95;
+}
+.footer p{
+  color:rgba(255,255,255,0.65);
+  font-size:12px;
+  margin:4px 0;
+  line-height:1.6;
+}
+.footer .credit{
+  color:var(--dorado-300);
+  font-weight:700;
+}
+.footer .flinks{
+  display:flex;
+  gap:14px;
+  justify-content:center;
+  margin-top:12px;
+  flex-wrap:wrap;
+}
+.footer .flinks a{
+  color:rgba(255,255,255,0.8);
+  font-size:12px;
+  font-weight:600;
+  border-bottom:1px solid rgba(255,255,255,0.25);
+  padding-bottom:2px;
+}
+.footer .flinks a:hover{color:var(--dorado-300);border-color:var(--dorado-300);}
+
+/* ============ HELP BOX ============ */
+.help-box{
+  background:#eef5ff;
+  border:1px solid #cfe2fa;
+  border-radius:var(--radio);
+  padding:16px 18px;
+  font-size:13px;
+  color:var(--azul-800);
+  margin-bottom:24px;
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  line-height:1.55;
+}
+.help-box .ico{
+  flex:0 0 26px;
+  width:26px;height:26px;
+  border-radius:50%;
+  background:var(--azul-800);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;
+  font-size:13px;
+}
+.help-box strong{display:block;margin-bottom:3px;color:var(--azul-900);}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:640px){
+  .field-grid{grid-template-columns:1fr;}
+  .hero-inner{flex-direction:column;text-align:center;}
+  .hero-photo{flex:0 0 auto; width:150px;}
+  .hero-desc{margin:0 auto;}
+  .hero-badges{justify-content:center;}
+  .center-actions{width:100%;justify-content:flex-end;}
+}
+</style>
 </head>
+
 <body>
-    <header>
-        <h1><i class="fas fa-map-marked-alt"></i> Taxi Comunidad Los Guayos · Tiempo real</h1>
-        <p style="opacity:0.9;">Conductores verificados • Servicio 24/7</p>
-    </header>
 
-    <!-- MAPA LEaFLET -->
-    <div class="map-container">
-        <div id="map"></div>
+<!-- ====== CINTA SUPERIOR ====== -->
+<div class="topband">
+  <img src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/Imagen%20superior.jpg?raw=true" alt="Concertación">
+</div>
+
+<!-- ====== HERO ====== -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-photo">
+      <img src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/561569243_18531223561001009_1410951617980685524_n.jpg?raw=true" alt="César Pérez Vivas y María Corina Machado">
+    </div>
+    <div class="hero-text">
+      <p class="hero-eyebrow">Sistema Web Electoral</p>
+      <h1 class="hero-title">Padrón de <span>Centros de Votación</span><br>Concertación Carabobo</h1>
+      <p class="hero-desc">Registra, organiza y resguarda la información de cada centro de votación: coordinadores, logística, movilidad y testigos. Todo queda guardado en tu navegador y listo para enviar al equipo regional con un solo clic.</p>
+      <div class="hero-badges">
+        <span class="badge"><img src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/Logo%20de%20concertacion.png?raw=true" alt="">Movimiento Concertación</span>
+        <span class="badge">★ Dr. César Pérez Vivas</span>
+        <span class="badge">★ Alianza: María Corina Machado</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== ACCESOS RÁPIDOS ====== -->
+<div class="quicklinks">
+  <a class="qlink" href="https://jhonmalorne.github.io/Concertacion/" target="_blank" rel="noopener"><span class="dot"></span>Web principal de Concertación</a>
+  <a class="qlink" href="https://concertacion-ciudadana.online/registro" target="_blank" rel="noopener"><span class="dot"></span>Registro de activismo</a>
+  <a class="qlink" href="https://www.whatsapp.com/channel/0029VbCf4Y25PO17BzacxG3Y" target="_blank" rel="noopener"><span class="dot"></span>Canal oficial de WhatsApp</a>
+</div>
+
+<div class="wrap">
+
+  <!-- ====== AYUDA ====== -->
+  <div class="help-box">
+    <div class="ico">i</div>
+    <div>
+      <strong>¿Cómo funciona este sistema?</strong>
+      Completa los datos del centro de votación y sus responsables, guarda el registro, y repite el proceso por cada centro que tengas a cargo. Cuando termines, presiona <b>"Enviar todo por WhatsApp"</b> para mandar el resumen completo al Coordinador Regional de Comunicación. Puedes editar o eliminar cualquier centro ya guardado en cualquier momento.
+    </div>
+  </div>
+
+  <!-- ====== STATS ====== -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num" id="statCentros">0</div>
+      <div class="lbl">Centros registrados</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="statTestigos">0</div>
+      <div class="lbl">Testigos totales</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="statMunicipios">0</div>
+      <div class="lbl">Municipios cubiertos</div>
+    </div>
+  </div>
+
+  <!-- ====== FORMULARIO ====== -->
+  <div class="section-title"><h2 id="formTitleMain">Registrar nuevo centro de votación</h2><div class="line"></div></div>
+  <p class="section-sub">Llena cada campo con la información real del centro. Los campos marcados con <span style="color:#c8102e;font-weight:700;">*</span> son obligatorios.</p>
+
+  <form class="card" id="centroForm">
+    <input type="hidden" id="editId" value="">
+
+    <!-- Datos del centro -->
+    <div class="card-header"><h3><span class="ico">1</span>Datos del centro de votación</h3></div>
+    <div class="field-grid">
+      <div class="field">
+        <label>Municipio <span class="req">*</span></label>
+        <input type="text" id="municipio" placeholder="Ej: Los Guayos" required>
+      </div>
+      <div class="field">
+        <label>Parroquia <span class="req">*</span></label>
+        <input type="text" id="parroquia" placeholder="Ej: Salvador Feo La Cruz" required>
+      </div>
+    </div>
+    <div class="field-grid">
+      <div class="field">
+        <label>Nombre del centro de votación <span class="req">*</span></label>
+        <input type="text" id="nombreCentro" placeholder="Ej: U.E. Simón Bolívar" required>
+      </div>
+      <div class="field">
+        <label>Dirección del centro de votación <span class="req">*</span></label>
+        <input type="text" id="direccionCentro" placeholder="Ej: Av. Principal, Sector El Carmen" required>
+      </div>
     </div>
 
-    <div class="action-bar">
-        <button class="btn-pedir" id="btnPedirTaxi"><i class="fas fa-taxi"></i> ¡PEDIR TAXI AHORA!</button>
+    <!-- Coordinador de Centro -->
+    <div class="role-block">
+      <p class="role-title"><span class="tag">Cargo</span>Coordinador de centro</p>
+      <div class="field-grid">
+        <div class="field"><label>Nombre y apellido</label><input type="text" id="coordCentro_nombre" placeholder="Nombre completo"></div>
+        <div class="field"><label>Cédula</label><input type="text" id="coordCentro_cedula" placeholder="V-00000000"></div>
+      </div>
+      <div class="field-grid cols-1">
+        <div class="field"><label>Teléfono WhatsApp</label><input type="text" id="coordCentro_telefono" placeholder="0412-0000000"></div>
+      </div>
     </div>
 
-    <div class="main-content">
-        <!-- LISTA DE TAXISTAS EN TIEMPO REAL (se llena con Firebase) -->
-        <div class="seccion-titulo" id="lista-taxistas-section">
-            <i class="fas fa-users fa-2x" style="color:#f39c12;"></i>
-            <h2>Taxistas disponibles (20 conductores ejemplo)</h2>
-        </div>
-        <div id="taxistas-container" class="taxistas-grid">
-            <!-- se carga dinámicamente desde Firebase -->
-            <div style="grid-column:1/-1; text-align:center; padding:3rem;">Cargando conductores... <i class="fas fa-spinner fa-pulse"></i></div>
-        </div>
-
-        <!-- BUZÓN ATENCIÓN AL CLIENTE (RECLAMOS/SUGERENCIAS) -->
-        <div class="buzon">
-            <div class="buzon-info">
-                <h3><i class="fas fa-comment-dots"></i> Atención al cliente</h3>
-                <p><strong>Baldwyn Mujica</strong> — reclamos y sugerencias</p>
-            </div>
-            <a href="https://wa.me/584244517644?text=Hola%20Baldwyn%2C%20tengo%20un%20comentario%20sobre%20el%20servicio%20de%20taxi" target="_blank" class="buzon-wa">
-                <i class="fab fa-whatsapp"></i> 0424 4517644
-            </a>
-        </div>
+    <!-- Coordinador Político -->
+    <div class="role-block">
+      <p class="role-title"><span class="tag">Cargo</span>Coordinador político de centro</p>
+      <div class="field-grid">
+        <div class="field"><label>Nombre y apellido</label><input type="text" id="coordPolitico_nombre" placeholder="Nombre completo"></div>
+        <div class="field"><label>Cédula</label><input type="text" id="coordPolitico_cedula" placeholder="V-00000000"></div>
+      </div>
+      <div class="field-grid cols-1">
+        <div class="field"><label>Teléfono WhatsApp</label><input type="text" id="coordPolitico_telefono" placeholder="0412-0000000"></div>
+      </div>
     </div>
 
-    <footer>
-        <i class="fas fa-leaf"></i> Plataforma gratuita · Datos en tiempo real con Firebase · Los Guayos
-    </footer>
+    <!-- Coordinador de Logística -->
+    <div class="role-block">
+      <p class="role-title"><span class="tag">Cargo</span>Coordinador de logística de centro</p>
+      <div class="field-grid">
+        <div class="field"><label>Nombre y apellido</label><input type="text" id="coordLogistica_nombre" placeholder="Nombre completo"></div>
+        <div class="field"><label>Cédula</label><input type="text" id="coordLogistica_cedula" placeholder="V-00000000"></div>
+      </div>
+      <div class="field-grid cols-1">
+        <div class="field"><label>Teléfono WhatsApp</label><input type="text" id="coordLogistica_telefono" placeholder="0412-0000000"></div>
+      </div>
+    </div>
 
-    <script>
-        // --------------------------------------------------------------
-        // CONFIGURACIÓN DE FIREBASE (proporcionada por el usuario)
-        // --------------------------------------------------------------
-        const firebaseConfig = {
-            apiKey: "AIzaSyDuDZ_uxF6P5OSc_0z7nuC0X_E98hPNsug",
-            authDomain: "taxi-comunidad-los-guayos.firebaseapp.com",
-            databaseURL: "https://taxi-comunidad-los-guayos-default-rtdb.firebaseio.com",
-            projectId: "taxi-comunidad-los-guayos",
-            storageBucket: "taxi-comunidad-los-guayos.firebasestorage.app",
-            messagingSenderId: "178697721594",
-            appId: "1:178697721594:web:69981a06c9b305c6811b43",
-            measurementId: "G-5HJPLK3BRJ"
-        };
+    <!-- Coordinador de Movilidad -->
+    <div class="role-block">
+      <p class="role-title"><span class="tag">Cargo</span>Coordinador de movilidad de centro</p>
+      <div class="field-grid">
+        <div class="field"><label>Nombre y apellido</label><input type="text" id="coordMovilidad_nombre" placeholder="Nombre completo"></div>
+        <div class="field"><label>Cédula</label><input type="text" id="coordMovilidad_cedula" placeholder="V-00000000"></div>
+      </div>
+      <div class="field-grid cols-1">
+        <div class="field"><label>Teléfono WhatsApp</label><input type="text" id="coordMovilidad_telefono" placeholder="0412-0000000"></div>
+      </div>
+    </div>
 
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const driversRef = database.ref('taxistas');
+    <!-- Testigos -->
+    <div class="card-header" style="margin-top:6px;"><h3><span class="ico">2</span>Testigos del centro</h3></div>
+    <div id="testigosContainer"></div>
+    <button type="button" class="btn btn-outline btn-sm" id="btnAddTestigo">+ Agregar otro testigo</button>
 
-        // --------------------------------------------------------------
-        // VARIABLES GLOBALES Y MAPA
-        // --------------------------------------------------------------
-        let map;
-        let markersLayer = L.layerGroup(); // agrupa marcadores de taxis
+    <!-- Acciones -->
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" id="btnGuardar">Guardar centro de votación</button>
+      <button type="button" class="btn btn-outline" id="btnLimpiar">Limpiar formulario</button>
+    </div>
+  </form>
 
-        // Centro aproximado de Los Guayos (Venezuela, Carabobo)
-        const LOS_GUAYOS_CENTER = [10.1833, -67.9167]; 
+  <!-- ====== LISTA DE CENTROS ====== -->
+  <div class="section-title" style="margin-top:36px;"><h2>Centros registrados</h2><div class="line"></div></div>
+  <p class="section-sub">Aquí se archivan todos los centros que has guardado en este dispositivo. Haz clic sobre cada uno para ver el detalle, editarlo o eliminarlo.</p>
 
-        // Nombres de ejemplo para 20 taxistas (reales venezolanos comunes)
-        const nombresEjemplo = [
-            "Carlos Pérez", "José Martínez", "Luis González", "Andrés Rodríguez",
-            "Juan Hernández", "Mario García", "David Fernández", "Daniel Sánchez",
-            "Jesús Ramírez", "Ricardo Castro", "Pedro Moreno", "Miguel Álvarez",
-            "Ángel Rojas", "Víctor Navarro", "Javier Molina", "Rafael Soto",
-            "Francisco Medina", "Enrique Ortega", "Manuel Delgado", "Santiago Vargas"
-        ];
+  <div id="centrosList"></div>
 
-        // Número de whatsapp genérico para todos (el proporcionado: 04244525765 → +58 424 4525765)
-        const WHATSAPP_GENERICO = "584244525765"; // sin + y sin espacios
+  <!-- ====== ENVÍO FINAL ====== -->
+  <div class="card" style="text-align:center;">
+    <h3 style="margin-top:0;color:var(--azul-800);font-size:17px;">¿Ya registraste todos tus centros?</h3>
+    <p style="color:var(--gris-600);font-size:13.5px;margin-bottom:18px;">Presiona el botón para enviar el resumen completo de todos los centros registrados directamente al Coordinador Regional de Comunicación por WhatsApp.</p>
+    <button class="btn btn-whatsapp" id="btnEnviarWA" style="font-size:15px;padding:14px 28px;">
+      <img src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/iconodewhatsapp.png?raw=true" alt="" style="width:20px;height:20px;">
+      Enviar todo por WhatsApp
+    </button>
+  </div>
 
-        // Placa genérica con formato variable para cada uno
-        function generarPlaca() {
-            const letras = "ABCDFGHJKLMNPRSTVWXYZ";
-            let placa = "";
-            for (let i = 0; i < 3; i++) placa += letras[Math.floor(Math.random() * letras.length)];
-            placa += Math.floor(Math.random() * 10);
-            placa += Math.floor(Math.random() * 10);
-            placa += Math.floor(Math.random() * 10);
-            return placa;
-        }
+</div>
 
-        // Generar una posición aleatoria cercana a Los Guayos (radio ~1.5km)
-        function randomNearbyPosition() {
-            const lat = LOS_GUAYOS_CENTER[0] + (Math.random() - 0.5) * 0.03;
-            const lng = LOS_GUAYOS_CENTER[1] + (Math.random() - 0.5) * 0.03;
-            return { lat, lng };
-        }
+<!-- ====== FOOTER ====== -->
+<div class="footer">
+  <img class="flogo" src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/imagenhomeconcertacion.png?raw=true" alt="Concertación">
+  <p class="credit">Sistema Web Electoral desarrollado por el Equipo Regional Carabobo</p>
+  <p>Movimiento Concertación · Dr. César Pérez Vivas · Alianza estratégica con María Corina Machado</p>
+  <div class="flinks">
+    <a href="https://jhonmalorne.github.io/Concertacion/" target="_blank" rel="noopener">Web principal</a>
+    <a href="https://concertacion-ciudadana.online/registro" target="_blank" rel="noopener">Registro de activismo</a>
+    <a href="https://www.whatsapp.com/channel/0029VbCf4Y25PO17BzacxG3Y" target="_blank" rel="noopener">Canal de WhatsApp</a>
+  </div>
+</div>
 
-        // --------------------------------------------------------------
-        // INICIALIZAR MAPA (Leaflet)
-        // --------------------------------------------------------------
-        function initMap() {
-            map = L.map('map').setView(LOS_GUAYOS_CENTER, 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-            markersLayer.addTo(map);
-        }
+<!-- ====== BOTÓN FLOTANTE WHATSAPP ====== -->
+<a class="float-wa" href="https://wa.me/584244525765" target="_blank" rel="noopener" title="Contactar al Coordinador Regional de Comunicación">
+  <img src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/iconodewhatsapp.png?raw=true" alt="WhatsApp">
+</a>
 
-        // --------------------------------------------------------------
-        // POBLAR BASE DE DATOS CON 20 TAXISTAS SI ESTÁ VACÍA
-        // --------------------------------------------------------------
-        function seedDatabaseIfEmpty() {
-            driversRef.once('value', (snapshot) => {
-                if (!snapshot.exists()) {
-                    console.log("Base vacía. Sembrando 20 taxistas de ejemplo...");
-                    const nuevosTaxistas = {};
-                    for (let i = 0; i < 20; i++) {
-                        const pos = randomNearbyPosition();
-                        const key = `taxista_${i+1}`; // usar claves legibles (push también funciona)
-                        nuevosTaxistas[key] = {
-                            nombre: nombresEjemplo[i % nombresEjemplo.length] + (i >= nombresEjemplo.length ? ` ${i+1}` : ''),
-                            edad: 24,                       // edad genérica
-                            placa: generarPlaca(),
-                            whatsapp: WHATSAPP_GENERICO,    // mismo número para todos (ejemplo)
-                            fotoConductor: "",              // placeholder con ícono
-                            fotoAuto: "",
-                            lat: pos.lat,
-                            lng: pos.lng,
-                            activo: true
-                        };
-                    }
-                    driversRef.set(nuevosTaxistas)
-                        .then(() => console.log("20 taxistas de ejemplo creados."))
-                        .catch(err => console.error("Error al sembrar:", err));
-                } else {
-                    console.log("La base ya tiene datos. Usando existentes.");
-                }
-            });
-        }
+<!-- ====== TOAST ====== -->
+<div class="toast" id="toast"><span class="dot-ok"></span><span id="toastMsg">Guardado correctamente</span></div>
 
-        // --------------------------------------------------------------
-        // RENDERIZAR TARJETAS DE TAXISTAS Y ACTUALIZAR MAPA
-        // --------------------------------------------------------------
-        function renderTaxistas(snapshot) {
-            const container = document.getElementById('taxistas-container');
-            if (!snapshot.exists()) {
-                container.innerHTML = '<div style="grid-column:1/-1; text-align:center;">No hay taxistas registrados. Pronto se agregarán.</div>';
-                markersLayer.clearLayers();
-                return;
-            }
+<script>
+/* =========================================================================
+   SISTEMA WEB ELECTORAL - CONCERTACIÓN CARABOBO
+   Todo se guarda en localStorage del navegador del usuario.
+   No requiere servidor, base de datos ni conexión a internet para funcionar
+   (excepto para enviar el WhatsApp final).
+   ========================================================================= */
 
-            const taxistas = snapshot.val();
-            let html = '';
-            const marcadores = []; // para luego añadirlos al mapa
+const WHATSAPP_DESTINO = "584244525765"; // Coordinador Regional de Comunicación
+const STORAGE_KEY = "concertacion_centros_v1";
 
-            // Limpiar marcadores anteriores
-            markersLayer.clearLayers();
+let testigoCounter = 0;
 
-            for (let id in taxistas) {
-                const t = taxistas[id];
-                // Generar las cards
-                html += `
-                    <div class="taxista-card" data-id="${id}">
-                        <div class="foto-duo">
-                            <div class="foto-conductor">
-                                <i class="fas fa-user-circle"></i>
-                                <p>conductor</p>
-                            </div>
-                            <div class="foto-auto">
-                                <i class="fas fa-car-side"></i>
-                                <p>vehículo</p>
-                            </div>
-                        </div>
-                        <div class="info-taxista">
-                            <div class="nombre">${t.nombre || 'Conductor'}</div>
-                            <div class="edad-placa">
-                                <span><i class="fas fa-calendar-alt"></i> ${t.edad || 24} años</span>
-                                <span><i class="fas fa-id-card"></i> ${t.placa || 'XXXXXXX'}</span>
-                            </div>
-                        </div>
-                        <a href="https://wa.me/${t.whatsapp || WHATSAPP_GENERICO}?text=Hola%20${encodeURIComponent(t.nombre || 'taxista')}%2C%20te%20hablo%20desde%20la%20app%20de%20Taxi%20Los%20Guayos%20para%20pedir%20un%20servicio." target="_blank" class="whatsapp-btn">
-                            <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
-                        </a>
-                    </div>
-                `;
+/* ---------- Utilidades de almacenamiento ---------- */
+function getCentros(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    console.error("Error leyendo almacenamiento:", e);
+    return [];
+  }
+}
 
-                // Crear marcador para el mapa si tiene lat/lng
-                if (t.lat && t.lng) {
-                    const marker = L.marker([t.lat, t.lng]).bindPopup(`
-                        <b>${t.nombre || 'Taxista'}</b><br>
-                        <i class="fas fa-car"></i> ${t.placa || 'XXXX'}<br>
-                        <a href="https://wa.me/${t.whatsapp || WHATSAPP_GENERICO}" target="_blank" style="color:#25D366;">📲 Contactar</a>
-                    `);
-                    markersLayer.addLayer(marker);
-                }
-            }
+function saveCentros(centros){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(centros));
+    return true;
+  }catch(e){
+    console.error("Error guardando:", e);
+    showToast("No se pudo guardar. Verifica el espacio de tu navegador.");
+    return false;
+  }
+}
 
-            container.innerHTML = html;
-        }
+function uid(){
+  return 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
 
-        // --------------------------------------------------------------
-        // CONFIGURAR LISTENER EN TIEMPO REAL (value)
-        // --------------------------------------------------------------
-        function escucharTaxistas() {
-            driversRef.on('value', (snapshot) => {
-                renderTaxistas(snapshot);
-            }, (error) => {
-                console.error("Error en Firebase listener:", error);
-                document.getElementById('taxistas-container').innerHTML = '<div style="color:red;">Error al cargar datos en tiempo real. Verifica conexión.</div>';
-            });
-        }
+/* ---------- Toast ---------- */
+let toastTimer;
+function showToast(msg){
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> toast.classList.remove('show'), 2600);
+}
 
-        // --------------------------------------------------------------
-        // BOTÓN "PEDIR TAXI": desplazamiento suave hacia la lista
-        // --------------------------------------------------------------
-        document.getElementById('btnPedirTaxi').addEventListener('click', function() {
-            document.getElementById('lista-taxistas-section').scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-            // efecto de destello en la lista (opcional)
-            const container = document.getElementById('taxistas-container');
-            container.style.transition = 'box-shadow 0.3s';
-            container.style.boxShadow = '0 0 0 4px #f39c12';
-            setTimeout(() => container.style.boxShadow = 'none', 800);
-        });
+/* ---------- Testigos dinámicos ---------- */
+function addTestigoBlock(prefill){
+  testigoCounter++;
+  const idx = testigoCounter;
+  const container = document.getElementById('testigosContainer');
 
-        // --------------------------------------------------------------
-        // INICIO DE TODO
-        // --------------------------------------------------------------
-        window.addEventListener('load', () => {
-            initMap();
-            // Sembrar datos si es necesario (no bloqueante)
-            seedDatabaseIfEmpty();
-            // Empezar a escuchar cambios en tiempo real
-            escucharTaxistas();
-        });
-    </script>
+  const block = document.createElement('div');
+  block.className = 'role-block';
+  block.dataset.testigoIndex = idx;
+  block.innerHTML = `
+    <button type="button" class="btn-remove-testigo" data-remove="${idx}">Quitar</button>
+    <p class="role-title"><span class="tag">Cargo</span>Testigo ${idx} de centro</p>
+    <div class="field-grid">
+      <div class="field"><label>Nombre y apellido</label><input type="text" class="testigo-nombre" placeholder="Nombre completo"></div>
+      <div class="field"><label>Cédula</label><input type="text" class="testigo-cedula" placeholder="V-00000000"></div>
+    </div>
+    <div class="field-grid cols-1">
+      <div class="field"><label>Teléfono WhatsApp</label><input type="text" class="testigo-telefono" placeholder="0412-0000000"></div>
+    </div>
+  `;
+  container.appendChild(block);
 
-    <!-- (Opcional) pequeños ajustes para que los iconos se vean mejor -->
-    <style>
-        .foto-conductor i, .foto-auto i { font-size: 2.8rem; }
-        .taxista-card .whatsapp-btn { width: 100%; }
-        .leaflet-popup-content .fa-whatsapp { color: #25D366; }
-    </style>
+  if(prefill){
+    block.querySelector('.testigo-nombre').value = prefill.nombre || '';
+    block.querySelector('.testigo-cedula').value = prefill.cedula || '';
+    block.querySelector('.testigo-telefono').value = prefill.telefono || '';
+  }
+
+  block.querySelector('[data-remove]').addEventListener('click', function(){
+    block.remove();
+    renumberTestigos();
+  });
+}
+
+function renumberTestigos(){
+  const blocks = document.querySelectorAll('#testigosContainer .role-block');
+  blocks.forEach((b, i)=>{
+    b.querySelector('.role-title').innerHTML = `<span class="tag">Cargo</span>Testigo ${i+1} de centro`;
+  });
+}
+
+document.getElementById('btnAddTestigo').addEventListener('click', ()=> addTestigoBlock());
+
+/* ---------- Recolectar datos del formulario ---------- */
+function collectFormData(){
+  const testigos = [];
+  document.querySelectorAll('#testigosContainer .role-block').forEach(block=>{
+    const nombre = block.querySelector('.testigo-nombre').value.trim();
+    const cedula = block.querySelector('.testigo-cedula').value.trim();
+    const telefono = block.querySelector('.testigo-telefono').value.trim();
+    if(nombre || cedula || telefono){
+      testigos.push({ nombre, cedula, telefono });
+    }
+  });
+
+  return {
+    municipio: document.getElementById('municipio').value.trim(),
+    parroquia: document.getElementById('parroquia').value.trim(),
+    nombreCentro: document.getElementById('nombreCentro').value.trim(),
+    direccionCentro: document.getElementById('direccionCentro').value.trim(),
+    coordCentro: {
+      nombre: document.getElementById('coordCentro_nombre').value.trim(),
+      cedula: document.getElementById('coordCentro_cedula').value.trim(),
+      telefono: document.getElementById('coordCentro_telefono').value.trim(),
+    },
+    coordPolitico: {
+      nombre: document.getElementById('coordPolitico_nombre').value.trim(),
+      cedula: document.getElementById('coordPolitico_cedula').value.trim(),
+      telefono: document.getElementById('coordPolitico_telefono').value.trim(),
+    },
+    coordLogistica: {
+      nombre: document.getElementById('coordLogistica_nombre').value.trim(),
+      cedula: document.getElementById('coordLogistica_cedula').value.trim(),
+      telefono: document.getElementById('coordLogistica_telefono').value.trim(),
+    },
+    coordMovilidad: {
+      nombre: document.getElementById('coordMovilidad_nombre').value.trim(),
+      cedula: document.getElementById('coordMovilidad_cedula').value.trim(),
+      telefono: document.getElementById('coordMovilidad_telefono').value.trim(),
+    },
+    testigos: testigos
+  };
+}
+
+/* ---------- Validación mínima ---------- */
+function validateForm(data){
+  if(!data.municipio || !data.parroquia || !data.nombreCentro || !data.direccionCentro){
+    showToast("Completa municipio, parroquia, nombre y dirección del centro.");
+    return false;
+  }
+  return true;
+}
+
+/* ---------- Limpiar formulario ---------- */
+function resetForm(){
+  document.getElementById('centroForm').reset();
+  document.getElementById('editId').value = '';
+  document.getElementById('testigosContainer').innerHTML = '';
+  testigoCounter = 0;
+  addTestigoBlock();
+  document.getElementById('btnGuardar').textContent = 'Guardar centro de votación';
+  document.getElementById('formTitleMain').textContent = 'Registrar nuevo centro de votación';
+}
+
+document.getElementById('btnLimpiar').addEventListener('click', resetForm);
+
+/* ---------- Guardar / Actualizar ---------- */
+document.getElementById('centroForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const data = collectFormData();
+  if(!validateForm(data)) return;
+
+  const editId = document.getElementById('editId').value;
+  let centros = getCentros();
+
+  if(editId){
+    centros = centros.map(c => c.id === editId ? {...data, id: editId, fecha: c.fecha} : c);
+    showToast("Centro actualizado correctamente.");
+  } else {
+    data.id = uid();
+    data.fecha = new Date().toLocaleString('es-VE');
+    centros.push(data);
+    showToast("Centro guardado correctamente.");
+  }
+
+  saveCentros(centros);
+  resetForm();
+  renderCentros();
+  renderStats();
+});
+
+/* ---------- Editar centro ---------- */
+function editCentro(id){
+  const centros = getCentros();
+  const c = centros.find(x => x.id === id);
+  if(!c) return;
+
+  document.getElementById('editId').value = c.id;
+  document.getElementById('municipio').value = c.municipio || '';
+  document.getElementById('parroquia').value = c.parroquia || '';
+  document.getElementById('nombreCentro').value = c.nombreCentro || '';
+  document.getElementById('direccionCentro').value = c.direccionCentro || '';
+
+  document.getElementById('coordCentro_nombre').value = c.coordCentro?.nombre || '';
+  document.getElementById('coordCentro_cedula').value = c.coordCentro?.cedula || '';
+  document.getElementById('coordCentro_telefono').value = c.coordCentro?.telefono || '';
+
+  document.getElementById('coordPolitico_nombre').value = c.coordPolitico?.nombre || '';
+  document.getElementById('coordPolitico_cedula').value = c.coordPolitico?.cedula || '';
+  document.getElementById('coordPolitico_telefono').value = c.coordPolitico?.telefono || '';
+
+  document.getElementById('coordLogistica_nombre').value = c.coordLogistica?.nombre || '';
+  document.getElementById('coordLogistica_cedula').value = c.coordLogistica?.cedula || '';
+  document.getElementById('coordLogistica_telefono').value = c.coordLogistica?.telefono || '';
+
+  document.getElementById('coordMovilidad_nombre').value = c.coordMovilidad?.nombre || '';
+  document.getElementById('coordMovilidad_cedula').value = c.coordMovilidad?.cedula || '';
+  document.getElementById('coordMovilidad_telefono').value = c.coordMovilidad?.telefono || '';
+
+  document.getElementById('testigosContainer').innerHTML = '';
+  testigoCounter = 0;
+  if(c.testigos && c.testigos.length){
+    c.testigos.forEach(t => addTestigoBlock(t));
+  } else {
+    addTestigoBlock();
+  }
+
+  document.getElementById('btnGuardar').textContent = 'Actualizar centro de votación';
+  document.getElementById('formTitleMain').textContent = 'Editando: ' + (c.nombreCentro || 'centro de votación');
+
+  document.querySelector('.wrap').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ---------- Eliminar centro ---------- */
+function deleteCentro(id){
+  if(!confirm("¿Seguro que deseas eliminar este centro de votación? Esta acción no se puede deshacer.")) return;
+  let centros = getCentros();
+  centros = centros.filter(c => c.id !== id);
+  saveCentros(centros);
+  showToast("Centro eliminado.");
+  renderCentros();
+  renderStats();
+}
+
+/* ---------- Render resumen por rol ---------- */
+function roleSummaryHTML(label, role){
+  if(!role || (!role.nombre && !role.cedula && !role.telefono)){
+    return `<div class="summary-item"><div class="role-name">${label}</div><div class="empty-role">Sin asignar</div></div>`;
+  }
+  return `
+    <div class="summary-item">
+      <div class="role-name">${label}</div>
+      <div class="person-name">${escapeHTML(role.nombre || 'Sin nombre')}</div>
+      <div class="person-detail">CI: ${escapeHTML(role.cedula || '—')}</div>
+      <div class="person-detail">Tel: ${escapeHTML(role.telefono || '—')}</div>
+    </div>`;
+}
+
+function escapeHTML(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------- Render lista de centros ---------- */
+function renderCentros(){
+  const centros = getCentros();
+  const list = document.getElementById('centrosList');
+
+  if(centros.length === 0){
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="ico-big">🗳️</div>
+        <p>Todavía no has registrado ningún centro de votación.</p>
+        <p>Completa el formulario de arriba para comenzar.</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = centros.map((c, i)=>{
+    const testigosHTML = (c.testigos && c.testigos.length)
+      ? c.testigos.map((t,ti)=> roleSummaryHTML(`Testigo ${ti+1}`, t)).join('')
+      : `<div class="summary-item"><div class="role-name">Testigos</div><div class="empty-role">No se registraron testigos</div></div>`;
+
+    return `
+    <div class="center-card" data-id="${c.id}">
+      <div class="center-head" data-toggle="${c.id}">
+        <div class="center-id">
+          <div class="center-num">${i+1}</div>
+          <div class="center-titles">
+            <strong>${escapeHTML(c.nombreCentro)}</strong>
+            <span>${escapeHTML(c.municipio)} · ${escapeHTML(c.parroquia)}</span>
+          </div>
+        </div>
+        <div class="center-actions">
+          <button type="button" class="btn btn-outline btn-sm" data-edit="${c.id}">Editar</button>
+          <button type="button" class="btn btn-danger-outline btn-sm" data-delete="${c.id}">Eliminar</button>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+      <div class="center-body">
+        <p style="font-size:12.5px;color:var(--gris-600);margin:14px 0 0;"><b>Dirección:</b> ${escapeHTML(c.direccionCentro)}</p>
+        <p style="font-size:11.5px;color:var(--gris-400);margin:4px 0 0;">Registrado: ${escapeHTML(c.fecha || '—')}</p>
+        <div class="summary-grid">
+          ${roleSummaryHTML('Coordinador de centro', c.coordCentro)}
+          ${roleSummaryHTML('Coordinador político', c.coordPolitico)}
+          ${roleSummaryHTML('Coordinador de logística', c.coordLogistica)}
+          ${roleSummaryHTML('Coordinador de movilidad', c.coordMovilidad)}
+          ${testigosHTML}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  /* listeners */
+  list.querySelectorAll('[data-toggle]').forEach(el=>{
+    el.addEventListener('click', function(e){
+      if(e.target.closest('[data-edit]') || e.target.closest('[data-delete]')) return;
+      const card = this.closest('.center-card');
+      card.classList.toggle('open');
+    });
+  });
+  list.querySelectorAll('[data-edit]').forEach(el=>{
+    el.addEventListener('click', function(){ editCentro(this.dataset.edit); });
+  });
+  list.querySelectorAll('[data-delete]').forEach(el=>{
+    el.addEventListener('click', function(){ deleteCentro(this.dataset.delete); });
+  });
+}
+
+/* ---------- Render estadísticas ---------- */
+function renderStats(){
+  const centros = getCentros();
+  document.getElementById('statCentros').textContent = centros.length;
+
+  let totalTestigos = 0;
+  const municipios = new Set();
+  centros.forEach(c=>{
+    totalTestigos += (c.testigos ? c.testigos.length : 0);
+    if(c.municipio) municipios.add(c.municipio.trim().toLowerCase());
+  });
+
+  document.getElementById('statTestigos').textContent = totalTestigos;
+  document.getElementById('statMunicipios').textContent = municipios.size;
+}
+
+/* ---------- Construcción del mensaje de WhatsApp ---------- */
+function buildWhatsAppMessage(){
+  const centros = getCentros();
+  if(centros.length === 0){
+    return null;
+  }
+
+  let msg = `*PADRÓN ELECTORAL - CONCERTACIÓN CARABOBO*\n`;
+  msg += `Total de centros reportados: ${centros.length}\n`;
+  msg += `========================================\n\n`;
+
+  centros.forEach((c, i)=>{
+    msg += `*CENTRO ${i+1}*\n`;
+    msg += `Municipio: ${c.municipio}\n`;
+    msg += `Parroquia: ${c.parroquia}\n`;
+    msg += `Centro de votación: ${c.nombreCentro}\n`;
+    msg += `Dirección: ${c.direccionCentro}\n\n`;
+
+    const addRole = (label, role) => {
+      if(role && (role.nombre || role.cedula || role.telefono)){
+        msg += `${label}: ${role.nombre || '—'} | CI: ${role.cedula || '—'} | Tel: ${role.telefono || '—'}\n`;
+      } else {
+        msg += `${label}: Sin asignar\n`;
+      }
+    };
+
+    addRole('Coordinador de centro', c.coordCentro);
+    addRole('Coordinador político', c.coordPolitico);
+    addRole('Coordinador de logística', c.coordLogistica);
+    addRole('Coordinador de movilidad', c.coordMovilidad);
+
+    if(c.testigos && c.testigos.length){
+      c.testigos.forEach((t, ti)=>{
+        addRole(`Testigo ${ti+1}`, t);
+      });
+    } else {
+      msg += `Testigos: No registrados\n`;
+    }
+
+    msg += `\n----------------------------------------\n\n`;
+  });
+
+  msg += `Enviado desde el Sistema Web Electoral - Equipo Regional Carabobo`;
+  return msg;
+}
+
+document.getElementById('btnEnviarWA').addEventListener('click', function(){
+  const msg = buildWhatsAppMessage();
+  if(!msg){
+    showToast("Primero debes registrar al menos un centro de votación.");
+    return;
+  }
+  const url = `https://wa.me/${WHATSAPP_DESTINO}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+});
+
+/* ---------- Inicialización ---------- */
+window.addEventListener('DOMContentLoaded', function(){
+  addTestigoBlock();
+  renderCentros();
+  renderStats();
+});
+</script>
+
 </body>
 </html>
