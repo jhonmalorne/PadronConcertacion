@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Padrón Electoral · Concertación Carabobo</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--navy:#0b2a5b;--navy2:#143a78;--gold:#c9a227;--bg:#f4f6fb;--ink:#14213d;--mut:#5b6785;--ok:#1f8a4c;--bad:#b3261e;--line:#dbe1ee}
 *{box-sizing:border-box}
@@ -57,7 +56,7 @@ dialog::backdrop{background:rgba(8,20,45,.6)}
  <img class="foto" alt="Dr. César Pérez Vivas y María Corina Machado" src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/561569243_18531223561001009_1410951617980685524_n.jpg?raw=true">
  <div>
   <h1>Padrón de <span>centros de votación</span><br>Concertación Carabobo</h1>
-  <p>Filtra tu municipio y parroquia, ubica el centro en el mapa y registra a sus coordinadores y delegados de mesa. Todo queda guardado en tu navegador.</p>
+  <p>Filtra tu municipio y parroquia, ubica tu centro de votación y registra a sus coordinadores y delegados de mesa. Todo queda guardado en tu navegador.</p>
   <div class="links">
    <a href="https://jhonmalorne.github.io/Concertacion/" target="_blank" rel="noopener">Web principal</a>
    <a href="https://concertacion-ciudadana.online/registro" target="_blank" rel="noopener">Registro de militancia y voluntarios</a>
@@ -73,19 +72,18 @@ dialog::backdrop{background:rgba(8,20,45,.6)}
   <div class="stat"><b id="s1">0</b><small>centros en el filtro</small></div>
   <div class="stat"><b id="s2">0</b><small>mesas en el filtro</small></div>
   <div class="stat"><b id="s3">0</b><small>delegados registrados</small></div>
-  <div class="stat"><b id="s4">0</b><small>centros ubicados en mapa</small></div>
+  <div class="stat"><b id="s4">0</b><small>centros con ubicación</small></div>
  </div>
  <div class="bar">
   <select id="fm" aria-label="Municipio"></select>
   <select id="fp" aria-label="Parroquia"></select>
   <input id="fq" type="search" placeholder="Buscar centro por nombre" aria-label="Buscar centro">
  </div>
- <div id="map" role="img" aria-label="Mapa de centros de votación"></div>
  <div class="list" id="list"></div>
 
  <details class="imp">
   <summary>Cargar más municipios (pegar listado)</summary>
-  <p>Pega el listado tal como lo entrega el CNE (líneas <code>MP.</code>, <code>PQ.</code> y luego <code>CENTRO &nbsp; mesas</code>). Se suma a los que ya están y queda guardado.</p>
+  <p>Si prefieres no usar centros.txt, pega aquí el listado tal como lo entrega el CNE (líneas <code>MP.</code>, <code>PQ.</code> y luego <code>CENTRO &nbsp; mesas</code>). Se suma a los que ya están y queda guardado.</p>
   <textarea id="imp" rows="7" placeholder="MP. GUACARA&#10;PQ. GUACARA&#10;Centro de Votación&#9;Mesas&#10;ESCUELA JOSE CECILIO AVILA&#9;6"></textarea>
   <div class="acts"><button id="bImp">Cargar listado</button><button class="alt" id="bClr">Quitar listados cargados</button></div>
  </details>
@@ -95,18 +93,19 @@ dialog::backdrop{background:rgba(8,20,45,.6)}
 <button class="wa" id="bWa" aria-label="Enviar reporte por WhatsApp"><img alt="" src="https://github.com/jhonmalorne/PadronConcertacion/blob/main/iconodewhatsapp.png?raw=true"></button>
 <div id="toast" role="status"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const WA="584244525765"; // 0424-4525765
 /* Coordenadas corregidas a mano: 'MUNICIPIO|PARROQUIA|CENTRO':[lat,lng] */
 const COORDS={};
+/* Dirección escrita: 'MUNICIPIO|PARROQUIA|CENTRO':'Av. Principal, sector…' */
+const DIRS={};
 const ROLES=[
  ["centro","Coordinador de centro","Representante general del centro"],
  ["politico","Coordinador político","Atiende los asuntos legales del equipo del centro"],
  ["logistica","Coordinador de logística","Alimentación, salud y operativos del centro y sus colaboradores"],
  ["movil","Coordinador de movilización","Personas que llevan y traen votantes del centro"],
  ["cmesa","Coordinador de mesa","Representantes de mesa (agrega los que necesites)"]];
-/* Base: Bejuma y Montalbán. El resto se carga desde el panel "Cargar más municipios". */
+/* Los 14 municipios van en centros.txt (mismo formato del CNE, junto a este index). Si no existe, se usa esta muestra: Bejuma y Montalbán. */
 const BASE=`MP. BEJUMA
 PQ. BEJUMA
 ESCUELA BASICA MIGUEL MARIN 5
@@ -159,21 +158,23 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const store=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let S=load("pc_state",{}), IMP=load("pc_import","");
-let CENTERS=[], cur=null, pick=false;
+let CENTERS=[], cur=null, FILE="";
 
 function parse(t){
- const out=[];let m,p;
+ const out=[];let m,p,pend=null;
+ const add=(n,k)=>{if(m&&p)out.push({m,p,n,k,id:m+"|"+p+"|"+n})};
  for(let l of t.split(/\r?\n/)){
-  l=l.trim(); if(!l||/^Centro de Votaci/i.test(l))continue;
-  let x=l.match(/^MP\.\s*(.+)$/i); if(x){m=x[1].trim();continue}
+  l=l.trim(); if(!l||/^Centro de Votaci.n\s+Mesas/i.test(l))continue;
+  if(pend&&/^\d+$/.test(l)){add(pend,+l);pend=null;continue}
+  let x=l.match(/^\d*\.?\s*MP\.\s*(.+)$/i); if(x){m=x[1].trim();continue}
   x=l.match(/^PQ\.\s*(.+)$/i); if(x){p=x[1].trim();continue}
   x=l.match(/^(.+?)\s+(\d+)$/);
-  if(x&&m&&p)out.push({m,p,n:x[1].trim(),k:+x[2],id:m+"|"+p+"|"+x[1].trim()});
+  if(x)add(x[1].trim(),+x[2]);else pend=l;
  } return out;
 }
 function build(){
  const seen=new Set();
- CENTERS=parse(BASE).concat(parse(IMP)).filter(c=>!seen.has(c.id)&&seen.add(c.id));
+ CENTERS=(FILE.trim()?parse(FILE):parse(BASE)).concat(parse(IMP)).filter(c=>!seen.has(c.id)&&seen.add(c.id));
  const ms=[...new Set(CENTERS.map(c=>c.m))].sort();
  $("#fm").innerHTML='<option value="">Todos los municipios</option>'+ms.map(m=>`<option>${esc(m)}</option>`).join("");
  fillPar(); render();
@@ -185,7 +186,8 @@ function fillPar(){
 }
 const st=c=>S[c.id]||(S[c.id]={r:{},m:[]});
 const delegs=c=>(S[c.id]?.m||[]).filter(x=>x&&x.n).length;
-const pos=c=>{const s=S[c.id];return COORDS[c.id]?{lat:COORDS[c.id][0],lng:COORDS[c.id][1]}:(s&&s.lat?{lat:s.lat,lng:s.lng}:null)};
+const pos=c=>COORDS[c.id]?{lat:COORDS[c.id][0],lng:COORDS[c.id][1]}:null;
+const dir=c=>DIRS[c.id]||"";
 function filtered(){
  const m=$("#fm").value,p=$("#fp").value,q=$("#fq").value.trim().toLowerCase();
  return CENTERS.filter(c=>(!m||c.m===m)&&(!p||c.p===p)&&(!q||c.n.toLowerCase().includes(q)));
@@ -195,33 +197,16 @@ function render(){
  $("#s1").textContent=L.length;
  $("#s2").textContent=L.reduce((a,c)=>a+c.k,0);
  $("#s3").textContent=L.reduce((a,c)=>a+delegs(c),0);
- $("#s4").textContent=L.filter(pos).length;
+ $("#s4").textContent=L.filter(c=>pos(c)||dir(c)).length;
  $("#list").innerHTML=L.length?L.map(c=>{
   const d=delegs(c),cls=d>=c.k?"done":d>0?"part":"";
   return `<div class="card ${cls}" tabindex="0" role="button" data-id="${esc(c.id)}">
   <h3>${esc(c.n)}</h3><small>${esc(c.m)} · ${esc(c.p)}</small>
   <div class="chips"><span class="chip">${c.k} ${c.k==1?"mesa":"mesas"}</span>
   <span class="chip ${d>=c.k?"ok":""}">Delegados ${d}/${c.k}</span>
-  <span class="chip ${pos(c)?"ok":"no"}">${pos(c)?"Ubicado":"Dirección por concretar"}</span></div></div>`}).join("")
+  <span class="chip ${pos(c)||dir(c)?"ok":"no"}">${pos(c)||dir(c)?"Ubicado":"Dirección por concretar"}</span></div></div>`}).join("")
   :'<div class="empty">No hay centros con ese filtro. Pega el listado del municipio en "Cargar más municipios".</div>';
- mapRefresh(L);
 }
-
-/* Mapa */
-const map=L.map("map").setView([10.17,-67.95],9);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-const layer=L.layerGroup().addTo(map);
-function mapRefresh(L_){
- layer.clearLayers(); const pts=[];
- L_.forEach(c=>{const p=pos(c);if(!p)return;pts.push([p.lat,p.lng]);
-  L.marker([p.lat,p.lng],{title:c.n}).addTo(layer).on("click",()=>openC(c))});
- if(pts.length)map.fitBounds(pts,{padding:[30,30],maxZoom:15});
-}
-map.on("click",e=>{
- if(!pick||!cur)return; pick=false;
- const s=st(cur);s.lat=e.latlng.lat;s.lng=e.latlng.lng;store("pc_state",S);
- toast("Ubicación guardada");render();openC(cur);
-});
 
 /* Detalle del centro */
 function people(key,arr){
@@ -238,10 +223,8 @@ function openC(c){
  $("#dlg").innerHTML=`<div class="dh"><h2>${esc(c.n)}</h2><button onclick="$('#dlg').close()">Cerrar</button></div>
  <div class="db">
   <p><b>${esc(c.m)}</b> · ${esc(c.p)} · ${c.k} ${c.k==1?"mesa":"mesas"}</p>
-  <p>${p?`📍 Ubicación guardada (${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}) — <a target="_blank" rel="noopener" href="https://maps.google.com/?q=${p.lat},${p.lng}">abrir en Google Maps</a>`:"⚠️ Dirección por concretar"}</p>
-  <div class="acts"><button class="alt" onclick="geo()">Ubicar automáticamente</button>
-  <button class="alt" onclick="startPick()">Marcar en el mapa</button>
-  <a href="https://maps.google.com/?q=${q}" target="_blank" rel="noopener"><button class="alt" type="button">Buscar en Google Maps</button></a></div>
+  <p>${p?`📍 <a target="_blank" rel="noopener" href="https://maps.google.com/?q=${p.lat},${p.lng}">Ver ubicación en Google Maps</a>`:dir(c)?`📍 ${esc(dir(c))}`:"⚠️ Dirección por concretar"}</p>
+  <div class="acts"><a href="https://maps.google.com/?q=${q}" target="_blank" rel="noopener"><button class="alt" type="button">Buscar en Google Maps</button></a></div>
   <input placeholder="Observaciones (dirección exacta, referencias…)" value="${esc(s.obs||"")}" onchange="st(cur).obs=this.value;store('pc_state',S)">
   ${ROLES.map(([k,l,d])=>`<div class="sec"><h4>${l}</h4><p>${d}</p>${people(k,s.r[k]||[])}
    <button class="alt" onclick="addP('${k}')">+ Agregar ${l.toLowerCase()}</button></div>`).join("")}
@@ -258,17 +241,6 @@ function setP(k,i,f,v){const s=st(cur);s.r[k][i][f]=v;store("pc_state",S);render
 function addP(k){const s=st(cur);(s.r[k]=s.r[k]||[]).push({n:"",c:"",t:""});store("pc_state",S);openC(cur)}
 function delP(k,i){st(cur).r[k].splice(i,1);store("pc_state",S);openC(cur);render()}
 function setM(i,f,v){st(cur).m[i][f]=v;store("pc_state",S);render()}
-function startPick(){pick=true;$("#dlg").close();$("#map").scrollIntoView({behavior:"smooth"});toast("Toca el mapa en el lugar del centro",4000)}
-async function geo(){
- const c=cur;toast("Buscando ubicación…");
- try{
-  const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(c.n+", "+c.p+", "+c.m+", Carabobo, Venezuela"));
-  const j=await r.json();
-  if(!j.length){toast("No se encontró: dirección por concretar. Usa «Marcar en el mapa».",4000);return}
-  const s=st(c);s.lat=+j[0].lat;s.lng=+j[0].lon;store("pc_state",S);render();openC(c);toast("Ubicación aproximada guardada");
- }catch(e){toast("Sin conexión: dirección por concretar",3500)}
-}
-
 /* Reporte WhatsApp */
 function report(list){
  let t="*PADRÓN CONCERTACIÓN CARABOBO*\n"+new Date().toLocaleString("es-VE")+"\n",mesas=0,dl=0;
@@ -298,7 +270,7 @@ $("#bImp").onclick=()=>{
 };
 $("#bClr").onclick=()=>{if(confirm("¿Quitar los listados cargados? Los datos de coordinadores se conservan.")){IMP="";store("pc_import","");build()}};
 let tt;function toast(m,ms=2200){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(tt);tt=setTimeout(()=>t.style.display="none",ms)}
-build();
+fetch("centros.txt").then(r=>r.ok?r.text():"").catch(()=>"").then(t=>{FILE=t;build()});
 </script>
 </body>
 </html>
